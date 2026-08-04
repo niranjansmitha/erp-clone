@@ -1,0 +1,390 @@
+CREATE DATABASE IF NOT EXISTS peopleone_user_db;
+USE peopleone_user_db;
+
+-- 1. Temporarily disable foreign key checks
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- 2. Drop existing tables
+DROP TABLE IF EXISTS employee_leave_balance;
+DROP TABLE IF EXISTS leave_requests;
+DROP TABLE IF EXISTS employee_document;
+DROP TABLE IF EXISTS employee_address;
+DROP TABLE IF EXISTS employee_finance;
+DROP TABLE IF EXISTS employee_job_details;
+DROP TABLE IF EXISTS employee_identity;
+DROP TABLE IF EXISTS employee_biographical;
+DROP TABLE IF EXISTS user_auth;
+DROP TABLE IF EXISTS policy_documents;
+DROP TABLE IF EXISTS announcements;
+DROP TABLE IF EXISTS department;
+DROP TABLE IF EXISTS poll_votes;
+DROP TABLE IF EXISTS polls;
+DROP TABLE IF EXISTS kudos;
+DROP TABLE IF EXISTS badges;
+DROP TABLE IF EXISTS employee;
+DROP TABLE IF EXISTS office_location;
+DROP TABLE IF EXISTS company;
+
+-- 3. Re-enable foreign key checks (Crucial!)
+SET FOREIGN_KEY_CHECKS = 1;
+
+
+-- 2. Core Organizational Tables
+CREATE TABLE company (
+    id CHAR(36) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    group_company VARCHAR(255)
+);
+CREATE TABLE office_location (
+    id CHAR(36) PRIMARY KEY,
+    name VARCHAR(255),
+    area VARCHAR(255),
+    city VARCHAR(100),
+    state VARCHAR(100),
+    country VARCHAR(100),
+    pincode VARCHAR(20),
+    timezone VARCHAR(50)
+);
+CREATE TABLE employee (
+    id CHAR(36) PRIMARY KEY,
+    company_id CHAR(36),
+    system_email_id VARCHAR(255) UNIQUE NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100),
+    role VARCHAR(50) DEFAULT 'USER',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES company(id)
+);
+CREATE TABLE department (
+    id CHAR(36) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    business_unit VARCHAR(255),
+    head_employee_id CHAR(36) NULL,
+    FOREIGN KEY (head_employee_id) REFERENCES employee(id)
+);
+-- 3. Employee Sub-Tables
+CREATE TABLE employee_biographical (
+    employee_id CHAR(36) PRIMARY KEY,
+    date_of_birth DATE,
+    nationality VARCHAR(100),
+    religion VARCHAR(100),
+    marital_status VARCHAR(50),
+    blood_group VARCHAR(10),
+    t_shirt_size VARCHAR(10),
+    emergency_contact_name VARCHAR(255),
+    emergency_contact_relation VARCHAR(100),
+    emergency_contact_mobile VARCHAR(20),
+    FOREIGN KEY (employee_id) REFERENCES employee(id) ON DELETE CASCADE
+);
+CREATE TABLE employee_identity (
+    employee_id CHAR(36) PRIMARY KEY,
+    aadhaar_number VARCHAR(12) UNIQUE,
+    is_aadhaar_verified BOOLEAN DEFAULT FALSE,
+    pan_number VARCHAR(10) UNIQUE,
+    is_pan_verified BOOLEAN DEFAULT FALSE,
+    passport_number VARCHAR(20) UNIQUE,
+    driving_license_no VARCHAR(50),
+    is_dl_verified BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (employee_id) REFERENCES employee(id) ON DELETE CASCADE
+);
+CREATE TABLE employee_job_details (
+    employee_id CHAR(36) PRIMARY KEY,
+    department_id CHAR(36),
+    manager_id CHAR(36),
+    base_office_location_id CHAR(36),
+    designation VARCHAR(255),
+    date_of_joining DATE,
+    probation_period_days INT,
+    employee_type VARCHAR(50),
+    employee_sub_type VARCHAR(50),
+    FOREIGN KEY (employee_id) REFERENCES employee(id) ON DELETE CASCADE,
+    FOREIGN KEY (department_id) REFERENCES department(id),
+    FOREIGN KEY (manager_id) REFERENCES employee(id),
+    FOREIGN KEY (base_office_location_id) REFERENCES office_location(id)
+);
+CREATE TABLE employee_finance (
+    employee_id CHAR(36) PRIMARY KEY,
+    account_number VARCHAR(50),
+    bank_name VARCHAR(255),
+    ifsc_code VARCHAR(20),
+    iban_number VARCHAR(50),
+    swift_code VARCHAR(20),
+    tax_calculation_method VARCHAR(50),
+    pf_number VARCHAR(50),
+    uan_number VARCHAR(20),
+    pran_number VARCHAR(20),
+    FOREIGN KEY (employee_id) REFERENCES employee(id) ON DELETE CASCADE
+);
+CREATE TABLE employee_address (
+    id CHAR(36) PRIMARY KEY,
+    employee_id CHAR(36),
+    address_type VARCHAR(20) CHECK (address_type IN ('CURRENT', 'PERMANENT')),
+    flat_house_number VARCHAR(100),
+    street_locality VARCHAR(255),
+    landmark VARCHAR(255),
+    city VARCHAR(100),
+    state VARCHAR(100),
+    country VARCHAR(100),
+    pincode VARCHAR(20),
+    FOREIGN KEY (employee_id) REFERENCES employee(id) ON DELETE CASCADE
+);
+CREATE TABLE employee_document (
+    id CHAR(36) PRIMARY KEY,
+    employee_id CHAR(36),
+    document_category VARCHAR(50),
+    document_type VARCHAR(100),
+    file_url TEXT NOT NULL,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (employee_id) REFERENCES employee(id) ON DELETE CASCADE
+);
+-- ==========================================
+-- NEW MICROSERVICE TABLES (Auth & Comm)
+-- ==========================================
+CREATE TABLE user_auth (
+    id CHAR(36) PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    employee_id CHAR(36) NOT NULL,
+    FOREIGN KEY (employee_id) REFERENCES employee(id) ON DELETE CASCADE
+);
+CREATE TABLE announcements (
+    id CHAR(36) PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    author_id CHAR(36) NOT NULL,
+    target_department_id CHAR(36),
+    target_employee_id CHAR(36),
+    category VARCHAR(50) NOT NULL,
+    priority VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (author_id) REFERENCES employee(id) ON DELETE CASCADE,
+    FOREIGN KEY (target_department_id) REFERENCES department(id) ON DELETE CASCADE,
+    FOREIGN KEY (target_employee_id) REFERENCES employee(id) ON DELETE CASCADE
+);
+CREATE TABLE policy_documents (
+    id CHAR(36) PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description VARCHAR(5000),
+    category VARCHAR(255),
+    version VARCHAR(255),
+    file_url VARCHAR(255),
+    uploaded_by VARCHAR(255),
+    effective_date DATE,
+    expiry_date DATE,
+    status VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+CREATE TABLE leave_requests (
+    id CHAR(36) PRIMARY KEY,
+    employee_id CHAR(36) NOT NULL,
+    manager_id CHAR(36) NOT NULL,
+    leave_type VARCHAR(50) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    reason VARCHAR(255),
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (employee_id) REFERENCES employee(id) ON DELETE CASCADE,
+    FOREIGN KEY (manager_id) REFERENCES employee(id) ON DELETE CASCADE
+);
+CREATE TABLE employee_leave_balance (
+    id CHAR(36) PRIMARY KEY,
+    employee_id CHAR(36) NOT NULL,
+    leave_type VARCHAR(50) NOT NULL,
+    total_allotted INT NOT NULL DEFAULT 0,
+    used_days INT NOT NULL DEFAULT 0,
+    available_balance INT NOT NULL DEFAULT 0,
+    year INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (employee_id) REFERENCES employee(id) ON DELETE CASCADE,
+    UNIQUE KEY uk_employee_leave_year (employee_id, leave_type, year)
+);
+
+CREATE TABLE badges (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    employee_id VARCHAR(255) NOT NULL,
+    badge_name VARCHAR(255) NOT NULL,
+    description VARCHAR(255),
+    awarded_on DATE
+);
+
+CREATE TABLE kudos (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    sender_id VARCHAR(255),
+    receiver_id VARCHAR(255),
+    title VARCHAR(255),
+    message VARCHAR(1000)
+);
+
+CREATE TABLE polls (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    question VARCHAR(255) NOT NULL,
+    option1 VARCHAR(255) NOT NULL,
+    option2 VARCHAR(255) NOT NULL,
+    option3 VARCHAR(255),
+    option4 VARCHAR(255),
+    active BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE poll_votes (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    poll_id BIGINT,
+    employee_id VARCHAR(255),
+    selected_option VARCHAR(255)
+);
+
+USE peopleone_user_db;
+
+-- ==========================================
+-- 1. COMPANIES & LOCATIONS
+-- ==========================================
+INSERT INTO company (id, name, group_company) 
+VALUES ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'PeopleOne Technologies', 'PeopleOne Group');
+
+INSERT INTO office_location (id, name, city, state, country) 
+VALUES 
+('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'Gurugram HQ', 'Gurugram', 'Haryana', 'India'),
+('b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'Bangalore Tech Hub', 'Bangalore', 'Karnataka', 'India');
+
+-- ==========================================
+-- 2. EMPLOYEES (Base records must exist before Departments/Managers)
+-- ==========================================
+INSERT INTO employee (id, company_id, system_email_id, first_name, last_name, role) 
+VALUES 
+('d1eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'satwik.bhutani@peopleone.com', 'Satwik', 'Bhutani', 'ADMIN'),
+('e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'ananya.verma@peopleone.com', 'Ananya', 'Verma', 'ADMIN'),
+('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'aarav.sharma@peopleone.com', 'Aarav', 'Sharma', 'USER'),
+('d2eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'rounak.dev@peopleone.com', 'Rounak', 'Dev', 'USER');
+
+-- ==========================================
+-- 3. DEPARTMENTS 
+-- ==========================================
+INSERT INTO department (id, name, business_unit, head_employee_id) 
+VALUES 
+('c1eebc99-9c0b-4ef8-bb6d-6bb9bd380a33', 'Executive', 'Leadership', 'd1eebc99-9c0b-4ef8-bb6d-6bb9bd380a44'),
+('c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33', 'Engineering', 'Tech BU', 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44'),
+('c2eebc99-9c0b-4ef8-bb6d-6bb9bd380a33', 'Human Resources', 'Operations', 'e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55');
+
+-- ==========================================
+-- 4. EMPLOYEE JOB DETAILS (Linking Managers & Depts)
+-- ==========================================
+INSERT INTO employee_job_details (employee_id, department_id, manager_id, base_office_location_id, designation, employee_type)
+VALUES 
+-- Satwik is CEO (No manager)
+('d1eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'c1eebc99-9c0b-4ef8-bb6d-6bb9bd380a33', NULL, 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'Chief Executive Officer', 'Full-Time'),
+-- Ananya reports to Satwik
+('e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55', 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380a33', 'd1eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'HR Director', 'Full-Time'),
+-- Aarav reports to Satwik
+('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33', 'd1eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'Lead Engineer', 'Full-Time'),
+-- Rounak reports to Aarav
+('d2eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33', 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'Backend Developer', 'Full-Time');
+
+-- ==========================================
+-- 5. AUTHENTICATION (All passwords are 'password123')
+-- ==========================================
+INSERT INTO user_auth (id, email, password, role, employee_id) 
+VALUES 
+(UUID(), 'satwik.bhutani@peopleone.com', '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HCGFJZ3GPHuG5.8X9g.jK', 'ROLE_ADMIN', 'd1eebc99-9c0b-4ef8-bb6d-6bb9bd380a44'),
+(UUID(), 'ananya.verma@peopleone.com', '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HCGFJZ3GPHuG5.8X9g.jK', 'ROLE_ADMIN', 'e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55'),
+(UUID(), 'aarav.sharma@peopleone.com', '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HCGFJZ3GPHuG5.8X9g.jK', 'ROLE_USER', 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44'),
+(UUID(), 'rounak.dev@peopleone.com', '$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HCGFJZ3GPHuG5.8X9g.jK', 'ROLE_USER', 'd2eebc99-9c0b-4ef8-bb6d-6bb9bd380a44');
+
+-- ==========================================
+-- 6. RICH EMPLOYEE DATA (For GET endpoints)
+-- ==========================================
+INSERT INTO employee_biographical (employee_id, blood_group, emergency_contact_name, emergency_contact_mobile)
+VALUES 
+('d1eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'O+', 'Parent', '+91-9876543210'),
+('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'A+', 'Spouse', '+91-9876543211');
+
+INSERT INTO employee_finance (employee_id, bank_name, account_number, tax_calculation_method)
+VALUES 
+('d1eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'HDFC Bank', '1234567890', 'NEW_REGIME'),
+('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'ICICI Bank', '0987654321', 'OLD_REGIME');
+
+-- ==========================================
+-- 7. ANNOUNCEMENTS (Testing different targets)
+-- ==========================================
+INSERT INTO announcements (id, title, content, author_id, target_department_id, target_employee_id, category, priority)
+VALUES 
+-- 1. Global Announcement (Visible to everyone)
+(UUID(), 'Q3 Townhall Meeting', 'Join us for the Q3 townhall next Friday.', 'd1eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', NULL, NULL, 'COMPANY_NEWS', 'HIGH'),
+-- 2. Department Specific (Only visible to Engineering)
+(UUID(), 'AWS Maintenance Window', 'Servers will be down at midnight.', 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33', NULL, 'IT_ALERT', 'MEDIUM'),
+-- 3. Employee Specific (Only visible to Rounak)
+(UUID(), 'Welcome to the Team!', 'Please complete your onboarding tasks.', 'e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55', NULL, 'd2eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'ONBOARDING', 'HIGH');
+
+-- ==========================================
+-- 8. POLICY DOCUMENTS
+-- ==========================================
+INSERT INTO policy_documents (id, title, description, category, version, status)
+VALUES
+(UUID(), 'Remote Work Policy', 'Guidelines for WFH setups.', 'HR', '1.0', 'PUBLISHED'),
+(UUID(), 'Data Security Standards', 'Rules regarding handling PII and company data.', 'IT', '2.1', 'PUBLISHED'),
+(UUID(), 'Travel Reimbursement 2026', 'Updated travel allowance metrics.', 'FINANCE', '1.0', 'DRAFT');
+
+-- ==========================================
+-- 9. LEAVE MANAGEMENT
+-- ==========================================
+-- Leave Balances
+INSERT INTO employee_leave_balance (id, employee_id, leave_type, total_allotted, used_days, available_balance, year)
+VALUES
+(UUID(), 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'CASUAL', 10, 2, 8, 2026),
+(UUID(), 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'SICK', 7, 0, 7, 2026),
+(UUID(), 'd2eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'CASUAL', 10, 0, 10, 2026);
+
+-- Leave Requests
+INSERT INTO leave_requests (id, employee_id, manager_id, leave_type, start_date, end_date, reason, status)
+VALUES
+('80eebc99-9c0b-4ef8-bb6d-6bb9bd380a77', 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'd1eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'CASUAL', '2026-09-01', '2026-09-03', 'Family vacation', 'APPROVED'),
+(UUID(), 'd2eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'SICK', '2026-08-10', '2026-08-11', 'Fever and cold', 'PENDING');
+
+
+-- ==========================================
+-- BADGES
+-- ==========================================
+INSERT INTO badges (employee_id, badge_name, description, awarded_on) 
+VALUES 
+('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'Employee of the Month', 'Outstanding performance and delivery in Q2.', '2026-07-01'),
+('d2eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'Bug Smasher', 'Resolved the critical Eureka Server registration network issues.', '2026-08-01'),
+('e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55', 'Culture Champion', 'Successfully organized the company wellness program.', '2026-06-15');
+
+-- ==========================================
+-- KUDOS
+-- ==========================================
+INSERT INTO kudos (sender_id, receiver_id, title, message)
+VALUES 
+('d1eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'Great Microservices Architecture', 'The new API Gateway configuration looks fantastic and is highly scalable. Great job!'),
+('d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'd2eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'Lifesaver!', 'Thanks for jumping in late to fix the Postman JSON headers and Auth filters. You saved the demo.'),
+('e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55', 'd1eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'Inspiring Townhall', 'The vision you shared for Q3 really motivated the entire team.');
+
+-- ==========================================
+-- POLLS
+-- ==========================================
+INSERT INTO polls (question, option1, option2, option3, option4, active)
+VALUES 
+('Where should we host the 2026 Annual Company Offsite?', 'Goa', 'Kerala', 'Dubai', 'Bali', TRUE),
+('Which new employee perk would you prefer for next year?', 'Gym Membership', 'Home Office Stipend', 'Extra WFH Day', 'Free Streaming Subscriptions', TRUE);
+
+-- ==========================================
+-- POLL VOTES
+-- ==========================================
+INSERT INTO poll_votes (poll_id, employee_id, selected_option)
+VALUES 
+-- Votes for Poll 1
+(1, 'd1eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'Bali'),
+(1, 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'Goa'),
+(1, 'd2eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'Goa'),
+
+-- Votes for Poll 2
+(2, 'e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55', 'Home Office Stipend'),
+(2, 'd2eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', 'Extra WFH Day');
+
+
+select * from employee;
