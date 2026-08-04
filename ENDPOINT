@@ -1,0 +1,15 @@
+//changes in user-service 
+
+//added controller here
+
+@GetMapping("/{employeeId}/manager-id")
+	    public ResponseEntity<UUID> getManagerIdForEmployee(@PathVariable UUID employeeId) {
+	        
+	        // FOR TESTING: We are hardcoding Ananya Verma's ID here. 
+	        // Once this works, you will replace this with an actual database query 
+	        // to your employee_job_details table.
+	        
+	        UUID managerId = UUID.fromString("e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55");
+	        
+	        return ResponseEntity.ok(managerId);
+    }
