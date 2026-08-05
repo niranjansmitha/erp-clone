@@ -1,11 +1,11 @@
-POST http://localhost:8083/badges
+POST http://localhost:8080/api/v1/badges
 {
     "employeeId": "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44",
     "badgeName": "Employee of the Month",
     "description": "Awarded for outstanding performance."
 }
 
-POST http://localhost:8083/polls
+POST http://localhost:8080/api/v1/polls
 {
     "question": "Where should the annual team outing be?",
     "option1": "Goa",
@@ -15,7 +15,7 @@ POST http://localhost:8083/polls
     "active": true
 }
 
-POST http://localhost:8083/kudos
+POST http://localhost:8080/api/v1/kudos
 
 {
     "senderId": "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44",
@@ -24,7 +24,7 @@ POST http://localhost:8083/kudos
     "message": "Excellent teamwork!"
 }
 
-PUT http://localhost:8083/kudos/1
+PUT http://localhost:8080/api/v1/kudos/1
 
 {
     "title": "Outstanding Work",
