@@ -1,0 +1,32 @@
+POST http://localhost:8083/badges
+{
+    "employeeId": "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44",
+    "badgeName": "Employee of the Month",
+    "description": "Awarded for outstanding performance."
+}
+
+POST http://localhost:8083/polls
+{
+    "question": "Where should the annual team outing be?",
+    "option1": "Goa",
+    "option2": "Manali",
+    "option3": "Jaipur",
+    "option4": "Kerala",
+    "active": true
+}
+
+POST http://localhost:8083/kudos
+
+{
+    "senderId": "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44",
+    "receiverId": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+    "title": "Great Work",
+    "message": "Excellent teamwork!"
+}
+
+PUT http://localhost:8083/kudos/1
+
+{
+    "title": "Outstanding Work",
+    "message": "Amazing contribution to the project!"
+}
